@@ -18,7 +18,6 @@ fn main() {
     info!("Running Captive Portal DNS on UDP port 8853...");
 
     futures_lite::future::block_on(run(
-        &stack,
         // Can't use DEFAULT_SOCKET because it uses DNS port 53 which needs root
         SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8853),
         &mut tx_buf,

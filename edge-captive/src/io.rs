@@ -13,49 +13,27 @@ pub const DEFAULT_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSP
 const PORT: u16 = 53;
 
 #[derive(Debug)]
-pub enum DnsIoError<E> {
-    DnsError(DnsError),
-    IoError(E),
-}
-
-impl<E> From<DnsError> for DnsIoError<E> {
-    fn from(err: DnsError) -> Self {
-        Self::DnsError(err)
-    }
-}
-
-impl<E> fmt::Display for DnsIoError<E>
-where
-    E: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::DnsError(err) => write!(f, "DNS error: {}", err),
-            Self::IoError(err) => write!(f, "IO error: {}", err),
-        }
-    }
+pub enum DnsIoError {
+    DnsError,
+    IoError,
 }
 
 #[cfg(feature = "std")]
-impl<E> std::error::Error for DnsIoError<E> where E: std::error::Error {}
-
-pub async fn run<S>(
-    stack: &S,
+pub async fn run(
     local_addr: SocketAddr,
     tx_buf: &mut [u8],
     rx_buf: &mut [u8],
     ip: Ipv4Addr,
     ttl: Duration,
-) -> Result<(), DnsIoError<S::Error>>
-where
-    S: UdpBind,
-{
-    let mut udp = stack.bind(local_addr).await.map_err(DnsIoError::IoError)?;
+) -> Result<(), DnsIoError> {
+    use std::net::UdpSocket;
+
+    let mut udp = UdpSocket::bind(local_addr).map_err(|_| DnsIoError::IoError)?;
 
     loop {
         debug!("Waiting for data");
 
-        let (len, remote) = udp.receive(rx_buf).await.map_err(DnsIoError::IoError)?;
+        let (len, remote) = udp.recv_from(rx_buf).map_err(|_| DnsIoError::IoError)?;
 
         let request = &rx_buf[..len];
 
@@ -68,13 +46,12 @@ where
                     warn!("Got invalid message from {remote}, skipping");
                     continue;
                 }
-                other => Err(other)?,
+                other => Err(DnsIoError::DnsError)?,
             },
         };
 
-        udp.send(remote, &tx_buf[..len])
-            .await
-            .map_err(DnsIoError::IoError)?;
+        udp.send_to(&tx_buf[..len], remote)
+            .map_err(|_| DnsIoError::IoError)?;
 
         debug!("Sent {len} bytes to {remote}");
     }
