@@ -1,3 +1,6 @@
+# This is a fork I made to investigate a crash on one of my projects. Down below follows the original readme. Do not use this.
+
+
 # edge-net
 
 [![CI](https://github.com/ivmarkov/edge-net/actions/workflows/ci.yml/badge.svg)](https://github.com/ivmarkov/edge-net/actions/workflows/ci.yml)
